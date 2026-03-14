@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מחשבון ריבית חכם</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    color: #fff;
+    padding: 32px 16px;
+  }
+  .header { text-align: center; margin-bottom: 40px; }
+  .header .emoji { font-size: 48px; margin-bottom: 8px; }
+  .header h1 {
+    font-size: clamp(24px, 5vw, 36px);
+    font-weight: 900;
+    background: linear-gradient(90deg, #f7971e, #ffd200);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+  }
+  .header p { color: #a0a0c0; margin-top: 8px; font-size: 14px; }
+  .panel {
+    max-width: 800px;
+    margin: 0 auto 32px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 32px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .panel h2 { font-size: 14px; color: #a0a0c0; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; }
+  .field label { display: block; margin-bottom: 8px; font-size: 13px; color: #c0c0e0; }
+  .field input {
+    width: 100%; padding: 12px 16px; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
+    color: #fff; font-size: 18px; font-weight: 700; outline: none;
+  }
+  button {
+    margin-top: 28px; width: 100%; padding: 16px; border-radius: 14px;
+    border: none; background: linear-gradient(90deg, #f7971e, #ffd200);
+    color: #1a1a2e; font-size: 18px; font-weight: 900; cursor: pointer;
+    transition: transform 0.1s;
+  }
+  button:active { transform: scale(0.98); }
+  .result-banner {
+    border-radius: 24px; padding: 32px; margin-bottom: 24px; text-align: center;
+  }
+  .result-banner .big-emoji { font-size: 56px; margin-bottom: 8px; }
+  .result-banner .label { font-size: 14px; letter-spacing: 2px; margin-bottom: 8px; }
+  .result-banner .amount { font-size: clamp(32px, 7vw, 52px); font-weight: 900; }
+  .result-banner .desc { color: rgba(255,255,255,0.6); margin-top: 12px; font-size: 13px; line-height: 1.8; }
+  .result-banner .desc strong { color: #fff; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; padding: 20px; text-align: center;
+  }
+  .stat-card .icon { font-size: 28px; margin-bottom: 8px; }
+  .stat-card .value { font-size: 20px; font-weight: 800; }
+  .stat-card .name { font-size: 12px; color: #8080a0; margin-top: 4px; }
+  .table-wrap {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px; overflow: hidden;
+  }
+  .table-wrap h3 { padding: 20px 24px; font-size: 15px; color: #a0a0c0; letter-spacing: 2px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { padding: 12px 16px; text-align: center; color: #8080a0; font-weight: 600; background: rgba(255,255,255,0.05); }
+  td { padding: 10px 16px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  .month-col { color: #6366f1; font-weight: 700; }
+  .principal-col { color: #34d399; }
+  .interest-col { color: #fb923c; }
+  .balance-col { color: #a0a0c0; }
+  .dots td { text-align: center; color: #555; letter-spacing: 4px; padding: 10px; }
+  #results { display: none; max-width: 800px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="emoji">💰</div>
+  <h1>מחשבון ריבית חכם</h1>
+  <p>האם כדאי לי לקחת הלוואה, או להשקיע?</p>
+</div>
+
+<div class="panel">
+  <h2>פרטי ההלוואה</h2>
+  <div class="grid">
+    <div class="field"><label>🏦 סכום הלוואה (₪)</label><input type="number" id="loanAmount" value="50000" min="1000" max="2000000" step="1000"></div>
+    <div class="field"><label>📉 ריבית הלוואה (%)</label><input type="number" id="loanRate" value="6" min="0.1" max="30" step="0.1"></div>
+    <div class="field"><label>📅 מספר תשלומים</label><input type="number" id="payments" value="84" min="1" max="360" step="1"></div>
+    <div class="field"><label>📈 ריבית השקעה (%)</label><input type="number" id="investRate" value="10" min="0.1" max="30" step="0.1"></div>
+  </div>
+  <button onclick="calculate()">✨ חשב עכשיו</button>
+</div>
+
+<div id="results">
+  <div id="banner" class="result-banner"></div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="icon">📆</div><div class="value" id="s1" style="color:#818cf8"></div><div class="name">תשלום חודשי</div></div>
+    <div class="stat-card"><div class="icon">💸</div><div class="value" id="s2" style="color:#f472b6"></div><div class="name">סך כל ההחזר</div></div>
+    <div class="stat-card"><div class="icon">📊</div><div class="value" id="s3" style="color:#fb923c"></div><div class="name">ריבית ששולמה</div></div>
+    <div class="stat-card"><div class="icon">🚀</div><div class="value" id="s4" style="color:#34d399"></div><div class="name">ערך עתידי (השקעה)</div></div>
+  </div>
+  <div class="table-wrap">
+    <h3>📋 לוח סילוקין</h3>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>חודש</th><th>תשלום</th><th>קרן</th><th>ריבית</th><th>יתרה</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function fmt(v) {
+  return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(v);
+}
+
+function calculate() {
+  const P = parseFloat(document.getElementById('loanAmount').value);
+  const annualLoan = parseFloat(document.getElementById('loanRate').value);
+  const n = parseInt(document.getElementById('payments').value);
+  const annualInvest = parseFloat(document.getElementById('investRate').value);
+
+  const r = annualLoan / 100 / 12;
+  const investR = annualInvest / 100 / 12;
+
+  const monthly = r === 0 ? P / n : (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  const totalPaid = monthly * n;
+  const totalInterest = totalPaid - P;
+  const principalFV = P * Math.pow(1 + investR, n);
+  const netProfit = principalFV - totalPaid;
+  const isProfit = netProfit > 0;
+
+  // Banner
+  const banner = document.getElementById('banner');
+  banner.style.background = isProfit
+    ? 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.3))'
+    : 'linear-gradient(135deg, rgba(239,68,68,0.2), rgba(185,28,28,0.3))';
+  banner.style.border = `2px solid ${isProfit ? 'rgba(16,185,129,0.5)' : 'rgba(239,68,68,0.5)'}`;
+  banner.innerHTML = `
+    <div class="big-emoji">${isProfit ? '🎉' : '⚠️'}</div>
+    <div class="label" style="color:${isProfit ? '#6ee7b7' : '#fca5a5'}">${isProfit ? 'אתה בריווח!' : 'אתה בהפסד'}</div>
+    <div class="amount" style="color:${isProfit ? '#10b981' : '#ef4444'}">${isProfit ? '+' : ''}${fmt(netProfit)}</div>
+    <div class="desc">
+      ${P.toLocaleString()}₪ שמושקעים ב-${annualInvest}% לאורך ${n} חודשים שווים <strong>${fmt(principalFV)}</strong><br>
+      סך החזר ההלוואה: <strong>${fmt(totalPaid)}</strong>
+    </div>`;
+
+  document.getElementById('s1').textContent = fmt(monthly);
+  document.getElementById('s2').textContent = fmt(totalPaid);
+  document.getElementById('s3').textContent = fmt(totalInterest);
+  document.getElementById('s4').textContent = fmt(principalFV);
+
+  // Amortization
+  const rows = [];
+  let balance = P;
+  for (let i = 1; i <= n; i++) {
+    const interest = balance * r;
+    const principal = monthly - interest;
+    balance -= principal;
+    rows.push({ month: i, payment: monthly, principal, interest, balance: Math.max(0, balance) });
+  }
+
+  const show = [...rows.slice(0, 6), null, ...rows.slice(-3)];
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = show.map(row => {
+    if (!row) return `<tr class="dots"><td colspan="5">• • •</td></tr>`;
+    return `<tr>
+      <td class="month-col">${row.month}</td>
+      <td>${fmt(row.payment)}</td>
+      <td class="principal-col">${fmt(row.principal)}</td>
+      <td class="interest-col">${fmt(row.interest)}</td>
+      <td class="balance-col">${fmt(row.balance)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('results').style.display = 'block';
+}
+
+calculate();
+</script>
+</body>
+</html>
